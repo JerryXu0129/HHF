@@ -70,7 +70,7 @@ class HHF(torch.nn.Module):
         elif method == 'NCA':
             if HHF_flag:
                 pos_term = torch.where(P_one_hot  ==  1, F.relu(1 - cos - delta), torch.zeros_like(cos)).sum()
-                neg_term = torch.log(1 + torch.where(P_one_hot  ==  0, torch.exp(F.relu(cos - threshold - delta)) - 1, torch.zeros_like(cos)).sum(dim = 1)).sum()
+                neg_term = torch.log(torch.where(P_one_hot  ==  0, torch.exp(F.relu(cos - threshold - delta)), torch.zeros_like(cos)).sum(dim = 1)).sum()
             else:
                 pos_term = torch.where(P_one_hot  ==  1, 1 - cos, torch.zeros_like(cos)).sum()
                 neg_term = torch.log(torch.where(P_one_hot  ==  0, torch.exp(cos), torch.zeros_like(cos)).sum(dim = 1)).sum()
