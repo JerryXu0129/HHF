@@ -1,5 +1,9 @@
+from matplotlib.pyplot import axis
 from model import *
 from config import *
+from mpl_toolkits.mplot3d import Axes3D, axes3d
+import matplotlib.pyplot as plt
+import numpy as np
 
 def prediction(loader):
     for i, (images, labels) in enumerate(loader):
@@ -12,20 +16,19 @@ def prediction(loader):
             outputs = torch.cat((outputs, feature_model(images)), 0)
             label = torch.cat((label, labels), 0)
         
-    
-    if train_flag:
-        f.write('output_sample: \n' + str(outputs[:10]) + '\n')
-        f.write('label_sample: \n' + str(label[:10]) + '\n')
-    else:
-        print('output_sample: \n' + str(outputs[:10]))
-        print('label_sample: \n' + str(label[:10]))
+    if datatype != 'toy':
+        if train_flag :
+            f.write('output_sample: \n' + str(outputs[:10]) + '\n')
+            f.write('label_sample: \n' + str(label[:10]) + '\n')
+        else:
+            print('output_sample: \n' + str(outputs[:10]))
+            print('label_sample: \n' + str(label[:10]))
  
     return outputs.cpu().numpy(), label.cpu().numpy()
 
 # Test the model
 def test():
     feature_model.eval()
-
     if train_flag or not os.path.exists(path + '_data'):
 
         with torch.no_grad():
@@ -48,7 +51,7 @@ def test():
 
     if tsne_flag:
         tsne = manifold.TSNE(n_components=2, metric='cosine', init='pca', random_state=501)
-        if dataset == 'imagenet' or dataset == 'coco':
+        if dataset not in ['cifar10', 'cifar100']:
             data_label = np.array([np.argmax(i) for i in data_label])
 
         X_tsne = tsne.fit_transform(data_predict)
@@ -66,17 +69,30 @@ def test():
         return 0
 
     if dist_flag:
-        y_ = np.eye(num_classes)[data_label]    
-        y_ = y_.reshape(database_num, num_classes, -1).repeat(num_bits, axis = 2)   
+        if dataset not in ['cifar10', 'cifar100']:
+            y__ = data_label
+        else:
+            y__ = np.eye(num_classes)[data_label]    
+        y_ = y__.reshape(database_num, num_classes, -1).repeat(num_bits, axis = 2) 
         x_ = data_predict.reshape(database_num, -1, num_bits).repeat(num_classes, axis = 1) 
         proxy = np.sum(x_ * y_, axis = 0) / np.sum(y_, axis = 0)  
 
-        Db = np.sum(np.linalg.norm(proxy[data_label] - data_predict, axis = 1)) / database_num   # calculate intra-distance
-        Dw = np.sum(np.sqrt(np.maximum(-2 * np.dot(proxy, proxy.T) + np.sum(np.square(proxy), axis=1, keepdims=True) + np.sum(np.square(proxy), axis=1), np.zeros((num_classes, num_classes))))) / (num_classes * (num_classes - 1))  # calculate inter-distance 
+        # Dw = np.sum(np.linalg.norm(proxy[data_label] - data_predict, axis = 1)) / database_num   # calculate intra-distance
+        # Db_g = np.sum(np.sqrt(np.maximum(-2 * np.dot(proxy, proxy.T) + np.sum(np.square(proxy), axis=1, keepdims=True) + np.sum(np.square(proxy), axis=1), np.zeros((num_classes, num_classes))))) / (num_classes * (num_classes - 1))  # calculate inter-distance 
+        Db_g =  np.sum(cdist(proxy, proxy, metric='euclidean')) / (num_classes * (num_classes - 1))
 
-        binary_diff = np.abs(np.sign(data_predict) - data_predict).sum() / (database_num * num_bits)
+        distance_metric = cdist(data_predict, proxy, metric='euclidean')
+        Dw = np.sum(distance_metric * y__) / database_num
 
-        print('Db:', Db, ' Dw:', Dw, ' ratio:', Db / Dw, 'diff:', binary_diff)
+        sample_intra = np.sum(np.where(y__, distance_metric, np.zeros_like(y__)), axis = 1)
+        sample_inter = np.min(np.where(1 - y__, distance_metric, np.zeros_like(y__) + num_bits), axis = 1)
+        eta_l = np.sum(np.true_divide(sample_intra, sample_inter)) / database_num
+        # diff_class_metric = np.where(1 - y__, distance_metric, np.zeros_like(y__) + num_bits)
+
+        HPE = np.sum(np.linalg.norm(data_predict - np.sign(data_predict), axis = 1)) / database_num
+        print(' Dw:', Dw, 'Db_g:', Db_g, ' eta_g:', Dw/Db_g, ' eta_l:', eta_l, 'HPE:', HPE)
+
+        return 0
 
     data_predict = np.sign(data_predict)
     test_predict = np.sign(test_predict)
@@ -85,7 +101,8 @@ def test():
     sim_ord = np.argsort(similarity, axis=1)
 
     if figure_flag:
-        f = open(method + '_' + str(HHF_flag) + '_' + dataset + '.txt', 'w')
+        workbook = xlwt.Workbook(encoding= 'ascii')
+        worksheet = workbook.add_sheet("result")
         Mean_precision = np.zeros((10))
         Mean_PR = np.zeros((100))
         for i in range(test_num):
@@ -94,7 +111,7 @@ def test():
             PR = []
             correct_count = 0
             for j in range(database_num):
-                if dataset == 'coco' or dataset == 'imagenet':
+                if dataset not in ['cifar10', 'cifar100']:
                     if np.dot(test_label[i], data_label[order[j]]) > 0:
                         correct_count += 1
                         PR.append(correct_count / (j + 1))
@@ -113,7 +130,11 @@ def test():
 
         Mean_precision /= test_num
         Mean_PR /= test_num
-        f.write(str(Mean_precision) + '\n' + str(Mean_PR))
+        for i in range(len(Mean_PR)):
+            worksheet.write(0, i, Mean_PR[i])
+        for i in range(len(Mean_precision)):
+            worksheet.write(1, i, Mean_precision[i])
+        workbook.save(dataset + '_' + method + '_' + str(HHF_flag) + '_' + str(num_bits) + ".xls")
         return 0
 
     else:
@@ -123,47 +144,38 @@ def test():
             p=0
             order=sim_ord[i]
             for j in range(retrieve):
-                if dataset == 'coco' or dataset == 'imagenet':
+                if dataset not in ['cifar10', 'cifar100']:
                     if np.dot(test_label[i], data_label[order[j]]) > 0:
-                        x=x+1
-                        p=p+float(x)/(j+1)
+                        x += 1
+                        p += float(x) / (j + 1)
                 else:
                     if test_label[i] == data_label[order[j]]:
                         x=x+1
                         p=p+float(x)/(j+1)
-            if p==0:   
-                apall[i]=0
-            else:
-                apall[i]=p/x
-        if dataset == 'cifar100-LT' and not train_flag:
-            mAP = np.zeros(3)
+            if p > 0:   
+                apall[i] = p / x
+        mAP=np.mean(apall)
+        if visual_flag:
+            perform_dict = {}
             for i in range(test_num):
-                if test_label[i] < 33:
-                    mAP[0] += apall[i]
-                elif test_label[i] < 66:
-                    mAP[1] += apall[i]
-                else:
-                    mAP[2] += apall[i]
-            mAP = np.divide(mAP, np.array([3300, 3300, 3400]))
-        else:
-            mAP=np.mean(apall)
-            if visual_flag:
-                perform_dict = {}
-                for i in range(test_num):
-                    perform_dict[i] = sim_ord[i][:10]
-                performance_order = np.argsort(apall)
-                performance_file = open(path+'_performance', 'w')
-                if HHF_flag:
-                    performance_file.write(str([performance_order[::-1].tolist(), perform_dict]))    
-                else:              
-                    performance_file.write(str([performance_order.tolist(), perform_dict]))
-                performance_file.close()
-
+                perform_dict[i] = sim_ord[i][:10]
+            performance_order = np.argsort(apall)
+            performance_file = open(path+'_performance', 'w')
+            if HHF_flag:
+                performance_file.write(str([performance_order[::-1].tolist(), perform_dict]))    
+            else:              
+                performance_file.write(str([performance_order.tolist(), perform_dict]))
+            performance_file.close()
         return mAP
-
-feature_model = torchvision.models.inception_v3(pretrained = True)
-inchannel = feature_model.fc.in_features
-feature_model.fc = nn.Linear(inchannel, num_bits)
+                
+if backbone == 'googlenet':
+    feature_model = torchvision.models.inception_v3(pretrained = True)
+    inchannel = feature_model.fc.in_features
+    feature_model.fc = nn.Linear(inchannel, num_bits)
+elif backbone == 'resnet':
+    feature_model = torchvision.models.resnet50(pretrained = True)
+    inchannel = feature_model.fc.in_features
+    feature_model.fc = nn.Linear(inchannel, num_bits)
 feature_model.to(device)
 
 if train_flag:    # Train the model
@@ -189,10 +201,16 @@ if train_flag:    # Train the model
 
                 batch_x = images.to(device)
                 batch_y = labels.to(device)    #   batch_y = 100
-                hash_value = feature_model(batch_x)[0]
+                if backbone == 'googlenet':
+                    hash_value = feature_model(batch_x)[0]
+                else:
+                    hash_value = feature_model(batch_x)
                 batch_x_ = images_.to(device)
                 batch_y_ = labels_.to(device)
-                hash_value_ = feature_model(batch_x_)[0]
+                if backbone == 'googlenet':
+                    hash_value_ = feature_model(batch_x_)[0]
+                else:
+                    hash_value_ = feature_model(batch_x_)
 
                 loss = model(x = hash_value, x_ = hash_value_, batch_y = batch_y, batch_y_ = batch_y_, reg = reg_flag)
             
@@ -213,8 +231,12 @@ if train_flag:    # Train the model
                 start = time.time()
 
                 batch_x = images.to(device)
-                batch_y = labels.to(device)   
-                hash_value = feature_model(batch_x)[0]
+                batch_y = labels.to(device)  
+                
+                if backbone == 'googlenet': 
+                    hash_value = feature_model(batch_x)[0]
+                else:
+                    hash_value = feature_model(batch_x)
                 loss = model(x = hash_value, batch_y = batch_y, reg = reg_flag)
 
                 # Backward and optimize
@@ -227,38 +249,102 @@ if train_flag:    # Train the model
                 sys.stdout.write('\r')
                 sys.stdout.write('| Epoch [%3d/%3d] Iter[%3d/%3d]\t\tLoss: %.4f Time: %.4f'
                     %(epoch , num_epochs, i, total_step, loss.item(), total_time))
-
-                f.write('| Epoch [' + str(epoch) + '/' + str(num_epochs) + '] Iter[' + str(i) + '/' + str(total_step) + '] Loss:' + str(loss.item()) + '\n')
+                if datatype != 'toy':
+                    f.write('| Epoch [' + str(epoch) + '/' + str(num_epochs) + '] Iter[' + str(i) + '/' + str(total_step) + '] Loss:' + str(loss.item()) + '\n')
 
         # f.write('P:\n' + str(P) + '\n')
         scheduler.step()
- 
-        if epoch > 70:
-            mAP = test()
-            if mAP > best_map:
-                best_map = mAP
-                best_epoch = epoch
-                print("epoch: ", epoch)
-                print("best_map: ", best_map)
-                f.write("epoch: " + str(epoch) + '\n')
-                f.write("best_map: " + str(best_map) + '\n')
-                torch.save(feature_model.state_dict(), model_path)
-            else:
-                print("epoch: ", epoch)
-                print("map: ", mAP)
-                print("best_epoch: ", best_epoch)
-                print("best_map: ", best_map)
-                f.write("epoch: " + str(epoch) + '\n')
-                f.write("map: " + str(mAP) + '\n')
-                f.write("best_epoch: " + str(best_epoch) + '\n')
-                f.write("best_map: " + str(best_map) + '\n')
+        if datatype != 'toy':
+            if epoch > 70:
+                mAP = test()
+                if mAP > best_map:
+                    best_map = mAP
+                    best_epoch = epoch
+                    print("epoch: ", epoch)
+                    print("best_" + "mAP: ", best_map)
+                    f.write("epoch: " + str(epoch) + '\n')
+                    f.write("best_" + "mAP: " + str(best_map) + '\n')
+                    torch.save(feature_model.state_dict(), model_path)
+                else:
+                    print("epoch: ", epoch)
+                    print("mAP: ", mAP)
+                    print("best_epoch: ", best_epoch)
+                    print("best_" + "mAP: ", best_map)
+                    if datatype != 'toy':
+                        f.write("epoch: " + str(epoch) + '\n')
+                        f.write("mAP: " + str(mAP) + '\n')
+                        f.write("best_epoch: " + str(best_epoch) + '\n')
+                        f.write("best_" + "mAP: " + str(best_map) + '\n')
 
-    f.write("best_map: " + str(best_map) + '\n')
-    f.close()
+    if datatype == 'toy':
+        feature_model.eval()
+        with torch.no_grad():
+            data_predict, data_label = prediction(trainloader)
+        data_label = np.array([np.argmax(i) for i in data_label])
+        data_predict = np.array([(3 ** 0.5) * i / np.linalg.norm(i) for i in data_predict])
+        print(data_label[:5])
+        print(data_predict[:5])
+        
+        color_list = sorted(list(set(mcolors.CSS4_COLORS.keys()) - set(['dimgrey', 'grey', 'darkgrey', 'lightgrey', 'gainsboro', 'whitesmoke', 'white', 'snow', 'darkred', 'mistyrose', 'seashell', 'linen', 'floralwhite', 'ivory', 'honeydew', 'aliceblue', 'azure', 'mintcream', 'ghostwhite', 'lavender', 'lavenderblush', 'lightcyan', 'beige', 'lightyellow', 'lightgoldenrodyellow', 'cornsilk', 'oldlace', 'antiquewhite', 'papayawhip', 'lemonchiffon', 'blanchedalmond'])))
+        r = random.random
+        random.seed(0)
+        random.shuffle(color_list, random=r)
+        # center and radius
+        center = [0, 0, 0]
+        radius = 3 ** (0.5)
+
+        # data
+        u = np.linspace(0, 2 * np.pi, 100)
+        v = np.linspace(0, np.pi, 100)
+        x = radius * np.outer(np.cos(u), np.sin(v)) + center[0]
+        y = radius * np.outer(np.sin(u), np.sin(v)) + center[1]
+        z = radius * np.outer(np.ones(np.size(u)), np.cos(v)) + center[2]
+
+        # plot
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        # ax = Axes3D(fig)
+        
+        # surface plot rstride 值越大，图像越粗糙
+        ax.plot_surface(x, y, z, rstride=2, cstride=2, color='w', alpha = 0.2)
+
+        x2 = [0, 0]
+        y2 = [-3**0.5, 3**0.5]
+        z2 = [0, 0]
+        ax.plot(x2, y2, z2, color = 'b', alpha = 0.2)
+
+        x1 = [1, 1, 1, -1, -1, -1, 1, -1]
+        y1 = [1, 1, -1, 1, -1, 1, -1, -1]
+        z1 = [1, -1, 1, 1, 1, -1, -1, -1]
+
+        ax.scatter(x1, y1, z1)
+
+        x2 = data_predict[:, 0]
+        y2 = data_predict[:, 1]
+        z2 = data_predict[:, 2]
+
+        for i in range(0, len(data_label)):
+            ax.scatter(x2[i], y2[i], z2[i], marker='o',s=20 ,color = color_list[data_label[i]],alpha=0.5)
+
+        # 添加坐标轴(顺序是Z, Y, X)
+        ax.set_zlabel('Z')
+        ax.set_ylabel('Y')
+        ax.set_xlabel('X')
+        ax.grid(False)
+        # show
+        # plt.show()
+        ax.view_init(elev=10., azim=11)
+        plt.savefig("globe.jpg")
+    
+    else:
+        f.write("best_" + "mAP: " + str(best_map) + '\n')
+        f.close()
 
 else:
-    feature_model.load_state_dict(torch.load(model_path,  map_location = device))
+    if not os.path.exists(path + '_data'):
+        feature_model.load_state_dict(torch.load(model_path,  map_location = device))
     best_map = test()
 
-print('mAP: ', best_map)
+
+print("mAP: ", best_map)
     

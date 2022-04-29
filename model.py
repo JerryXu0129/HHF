@@ -4,11 +4,11 @@ class HHF(torch.nn.Module):
     def __init__(self):
         torch.nn.Module.__init__(self)
         # Initialization
-        self.proxies = torch.nn.Parameter(torch.randn(num_classes, num_bits).to(device))    
+        self.proxies = torch.nn.Parameter(torch.randn(num_classes, num_bits).to(device))                
         nn.init.kaiming_normal_(self.proxies, mode = 'fan_out')
 
     def forward(self, x = None, x_ = None, batch_y = None, batch_y_ = None, reg = None):
-        if dataset == 'coco' or dataset == 'imagenet':
+        if dataset not in ['cifar10', 'cifar100']:
             P_one_hot = batch_y
             if based_method == 'pair':
                 P_one_hot_ = batch_y_
@@ -30,7 +30,6 @@ class HHF(torch.nn.Module):
             else:     
                 pos_exp = torch.exp(alpha * (0.1 - cos))
                 neg_exp = torch.exp(alpha * (0.1 + cos))
-
             P_sim_sum = torch.where(P_one_hot  ==  1, pos_exp, torch.zeros_like(pos_exp)).sum(dim = 0)         
             N_sim_sum = torch.where(P_one_hot  ==  0, neg_exp, torch.zeros_like(neg_exp)).sum(dim = 0)
             pos_term = torch.log(1 + P_sim_sum).sum() / len(torch.nonzero(P_one_hot.sum(dim = 0) !=  0).squeeze(dim = 1))
@@ -70,10 +69,11 @@ class HHF(torch.nn.Module):
         elif method == 'NCA':
             if HHF_flag:
                 pos_term = torch.where(P_one_hot  ==  1, F.relu(1 - cos - delta), torch.zeros_like(cos)).sum()
-                neg_term = torch.log(1 + torch.where(P_one_hot  ==  0, torch.exp(F.relu(cos - threshold - delta)) - 1, torch.zeros_like(cos)).sum(dim = 1)).sum()
+                neg_term = torch.log(torch.where(P_one_hot  ==  0, torch.exp(F.relu(cos - threshold - delta)), torch.zeros_like(cos)).sum(dim = 1)).sum()
             else:
                 pos_term = torch.where(P_one_hot  ==  1, 1 - cos, torch.zeros_like(cos)).sum()
                 neg_term = torch.log(torch.where(P_one_hot  ==  0, torch.exp(cos), torch.zeros_like(cos)).sum(dim = 1)).sum()
+
         loss1 = pos_term + neg_term
 
         if not reg:
