@@ -1,5 +1,6 @@
 import numpy as np
 import collections
+from torch.utils import *
 
 import torchvision
 from torchvision import *
@@ -21,12 +22,11 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 class ImageList(object):
     def __init__(self, image_list, labels=None, transform=None):
-        self.imgs = [(val.split()[0], np.array([int(la) for la in val.split()[1:]])) for val in image_list]
+        self.imgs = [(transforms.Resize((299, 299))(Image.open(open(val.split()[0], 'rb')).convert('RGB')), np.array([int(la) for la in val.split()[1:]])) for val in image_list]
         self.transform = transform
 
     def __getitem__(self, index):
-        path, target = self.imgs[index]
-        img = Image.open(open(path, 'rb')).convert('RGB')
+        img, target = self.imgs[index]
         if self.transform is not None:
             img = self.transform(img)
         return img, target

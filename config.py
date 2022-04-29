@@ -10,6 +10,7 @@ import torch.nn.functional as F
 import json
 import xlrd
 import xlwt
+
 from dataset import *
 from sklearn import manifold
 from torch.utils import *
@@ -17,7 +18,7 @@ from scipy.spatial.distance import cdist
 
 parser = argparse.ArgumentParser(description = 'retrieval')
 parser.add_argument('--dataset', type = str, default = 'cifar10', help = "dataset name")    #cifar10, cifar100, coco, imagenet
-parser.add_argument('--datatype', type = str, default = 'full', help = "datatype")      #full, mini
+parser.add_argument('--datatype', type = str, default = 'full', help = "datatype")      #full, mini, toy
 parser.add_argument('--hash_bit', type = int, default = 48, help = "number of hash code bits")      #12, 16, 24, 32, 48, 64
 parser.add_argument('--batch_size', type = int, default = 85, help = "batch size")
 parser.add_argument('--epochs', type = int, default = 100, help = "epochs")
@@ -75,7 +76,7 @@ delta = args.delta
 path = './result/' + dataset + '_' + datatype + '_' + backbone + '_' + str(num_bits) + '_' + str(batch_size) + '_' + method + '_' + str(HHF_flag) + '_' + str(alpha + beta + delta)
 model_path = path + '.ckpt'
 
-if train_flag:
+if train_flag and datatype != 'toy':
     file_path = path + '.txt'
     f = open(file_path, 'w')
 
@@ -87,12 +88,10 @@ device = torch.device('cuda:'+str(args.cuda) if torch.cuda.is_available() else '
 
 #  data pre-treatment
 data_transform = {
-    "train": transforms.Compose([transforms.Resize((299, 299)),
-                                transforms.RandomHorizontalFlip(),
+    "train": transforms.Compose([transforms.RandomHorizontalFlip(),
                                 transforms.ToTensor(),
                                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])]),
-    "val": transforms.Compose([transforms.Resize((299, 299)),
-                            transforms.ToTensor(),
+    "val": transforms.Compose([transforms.ToTensor(),
                             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])}
 # load train data
 if dataset  ==  'cifar10':
@@ -166,14 +165,23 @@ elif dataset == 'coco':
     database = ImageList(open('./data/coco/database.txt', 'r').readlines(), transform = data_transform['val'])
 
 elif dataset == 'imagenet':
-    if retrieve == 0:
-        retrieve = 1000
-    num_classes = 100
-    trainset = ImageList(open('./data/imagenet/train.txt', 'r').readlines(), transform = data_transform['train'])
-    if based_method == 'pair':
-        trainset_ = ImageList(open('./data/imagenet/train.txt', 'r').readlines(), transform = data_transform['train'])
-    testset = ImageList(open('./data/imagenet/test.txt', 'r').readlines(), transform = data_transform['val'])
-    database = ImageList(open('./data/imagenet/database.txt', 'r').readlines(), transform = data_transform['val'])
+    if datatype == 'toy':
+        num_classes = 5
+        batch_size = 50
+        num_epochs = 100
+        num_bits = 3
+        testset = ImageList(open('./data/imagenet/new_test.txt', 'r').readlines(), transform = data_transform['val'])
+        trainset = testset
+        database = testset
+    else:
+        if retrieve == 0:
+            retrieve = 1000
+        num_classes = 100
+        trainset = ImageList(open('./data/imagenet/train.txt', 'r').readlines(), transform = data_transform['train'])
+        if based_method == 'pair':
+            trainset_ = ImageList(open('./data/imagenet/train.txt', 'r').readlines(), transform = data_transform['train'])
+        testset = ImageList(open('./data/imagenet/test.txt', 'r').readlines(), transform = data_transform['val'])
+        database = ImageList(open('./data/imagenet/database.txt', 'r').readlines(), transform = data_transform['val'])
 
 train_num = len(trainset)
 test_num = len(testset)
@@ -182,23 +190,23 @@ database_num = len(database)
 trainloader = data.DataLoader(dataset = trainset,
                             batch_size = batch_size,
                             shuffle = True,
-                            num_workers = 0)
+                            num_workers = 8)
 
 if based_method == 'pair':
     trainloader_ = data.DataLoader(dataset = trainset_,
                             batch_size = batch_size,
                             shuffle = True,
-                            num_workers = 0)
+                            num_workers = 8)
 
 testloader = data.DataLoader(dataset = testset,
                             batch_size = batch_size,
                             shuffle = False,
-                            num_workers = 0)
+                            num_workers = 8)
 
 databaseloader = data.DataLoader(dataset = database,
                             batch_size = batch_size,
                             shuffle = False,
-                            num_workers = 0)
+                            num_workers = 8)
 
 # find the value of ζ
 if HHF_flag:
@@ -207,3 +215,4 @@ if HHF_flag:
     print('threshold:', threshold)
 
 print('------------- data prepared -------------')
+

@@ -1,6 +1,9 @@
 from matplotlib.pyplot import axis
 from model import *
 from config import *
+from mpl_toolkits.mplot3d import Axes3D, axes3d
+import matplotlib.pyplot as plt
+import numpy as np
 
 def prediction(loader):
     for i, (images, labels) in enumerate(loader):
@@ -13,13 +16,13 @@ def prediction(loader):
             outputs = torch.cat((outputs, feature_model(images)), 0)
             label = torch.cat((label, labels), 0)
         
-    
-    if train_flag:
-        f.write('output_sample: \n' + str(outputs[:10]) + '\n')
-        f.write('label_sample: \n' + str(label[:10]) + '\n')
-    else:
-        print('output_sample: \n' + str(outputs[:10]))
-        print('label_sample: \n' + str(label[:10]))
+    if datatype != 'toy':
+        if train_flag :
+            f.write('output_sample: \n' + str(outputs[:10]) + '\n')
+            f.write('label_sample: \n' + str(label[:10]) + '\n')
+        else:
+            print('output_sample: \n' + str(outputs[:10]))
+            print('label_sample: \n' + str(label[:10]))
  
     return outputs.cpu().numpy(), label.cpu().numpy()
 
@@ -246,34 +249,98 @@ if train_flag:    # Train the model
                 sys.stdout.write('\r')
                 sys.stdout.write('| Epoch [%3d/%3d] Iter[%3d/%3d]\t\tLoss: %.4f Time: %.4f'
                     %(epoch , num_epochs, i, total_step, loss.item(), total_time))
-
-                f.write('| Epoch [' + str(epoch) + '/' + str(num_epochs) + '] Iter[' + str(i) + '/' + str(total_step) + '] Loss:' + str(loss.item()) + '\n')
+                if datatype != 'toy':
+                    f.write('| Epoch [' + str(epoch) + '/' + str(num_epochs) + '] Iter[' + str(i) + '/' + str(total_step) + '] Loss:' + str(loss.item()) + '\n')
 
         # f.write('P:\n' + str(P) + '\n')
         scheduler.step()
- 
-        if epoch > 70:
-            mAP = test()
-            if mAP > best_map:
-                best_map = mAP
-                best_epoch = epoch
-                print("epoch: ", epoch)
-                print("best_" + "mAP: ", best_map)
-                f.write("epoch: " + str(epoch) + '\n')
-                f.write("best_" + "mAP: " + str(best_map) + '\n')
-                torch.save(feature_model.state_dict(), model_path)
-            else:
-                print("epoch: ", epoch)
-                print("mAP: ", mAP)
-                print("best_epoch: ", best_epoch)
-                print("best_" + "mAP: ", best_map)
-                f.write("epoch: " + str(epoch) + '\n')
-                f.write("mAP: " + str(mAP) + '\n')
-                f.write("best_epoch: " + str(best_epoch) + '\n')
-                f.write("best_" + "mAP: " + str(best_map) + '\n')
 
-    f.write("best_" + "mAP: " + str(best_map) + '\n')
-    f.close()
+        if datatype != 'toy':
+            if epoch > 70:
+                mAP = test()
+                if mAP > best_map:
+                    best_map = mAP
+                    best_epoch = epoch
+                    print("epoch: ", epoch)
+                    print("best_" + "mAP: ", best_map)
+                    f.write("epoch: " + str(epoch) + '\n')
+                    f.write("best_" + "mAP: " + str(best_map) + '\n')
+                    torch.save(feature_model.state_dict(), model_path)
+                else:
+                    print("epoch: ", epoch)
+                    print("mAP: ", mAP)
+                    print("best_epoch: ", best_epoch)
+                    print("best_" + "mAP: ", best_map)
+                    if datatype != 'toy':
+                        f.write("epoch: " + str(epoch) + '\n')
+                        f.write("mAP: " + str(mAP) + '\n')
+                        f.write("best_epoch: " + str(best_epoch) + '\n')
+                        f.write("best_" + "mAP: " + str(best_map) + '\n')
+
+    if datatype == 'toy':
+        feature_model.eval()
+        with torch.no_grad():
+            data_predict, data_label = prediction(trainloader)
+        data_label = np.array([np.argmax(i) for i in data_label])
+        data_predict = np.array([(3 ** 0.5) * i / np.linalg.norm(i) for i in data_predict])
+        print(data_label[:5])
+        print(data_predict[:5])
+        
+        color_list = sorted(list(set(mcolors.CSS4_COLORS.keys()) - set(['dimgrey', 'grey', 'darkgrey', 'lightgrey', 'gainsboro', 'whitesmoke', 'white', 'snow', 'darkred', 'mistyrose', 'seashell', 'linen', 'floralwhite', 'ivory', 'honeydew', 'aliceblue', 'azure', 'mintcream', 'ghostwhite', 'lavender', 'lavenderblush', 'lightcyan', 'beige', 'lightyellow', 'lightgoldenrodyellow', 'cornsilk', 'oldlace', 'antiquewhite', 'papayawhip', 'lemonchiffon', 'blanchedalmond'])))
+        r = random.random
+        random.seed(0)
+        random.shuffle(color_list, random=r)
+        # center and radius
+        center = [0, 0, 0]
+        radius = 3 ** (0.5)
+
+        # data
+        u = np.linspace(0, 2 * np.pi, 100)
+        v = np.linspace(0, np.pi, 100)
+        x = radius * np.outer(np.cos(u), np.sin(v)) + center[0]
+        y = radius * np.outer(np.sin(u), np.sin(v)) + center[1]
+        z = radius * np.outer(np.ones(np.size(u)), np.cos(v)) + center[2]
+
+        # plot
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        # ax = Axes3D(fig)
+        
+        # surface plot rstride 值越大，图像越粗糙
+        ax.plot_surface(x, y, z, rstride=2, cstride=2, color='w', alpha = 0.2)
+
+        x2 = [0, 0]
+        y2 = [-3**0.5, 3**0.5]
+        z2 = [0, 0]
+        ax.plot(x2, y2, z2, color = 'b', alpha = 0.2)
+
+        x1 = [1, 1, 1, -1, -1, -1, 1, -1]
+        y1 = [1, 1, -1, 1, -1, 1, -1, -1]
+        z1 = [1, -1, 1, 1, 1, -1, -1, -1]
+
+        ax.scatter(x1, y1, z1)
+
+        x2 = data_predict[:, 0]
+        y2 = data_predict[:, 1]
+        z2 = data_predict[:, 2]
+
+        for i in range(0, len(data_label)):
+            ax.scatter(x2[i], y2[i], z2[i], marker='o',s=20 ,color = color_list[data_label[i]],alpha=0.5)
+
+        # 添加坐标轴(顺序是Z, Y, X)
+        ax.set_zlabel('Z')
+        ax.set_ylabel('Y')
+        ax.set_xlabel('X')
+        ax.grid(False)
+        # show
+        # plt.show()
+        ax.view_init(elev=10., azim=11)
+        plt.savefig("globe.jpg")
+    
+    else:
+        f.write("best_" + "mAP: " + str(best_map) + '\n')
+        f.close()
+
 
 else:
     if not os.path.exists(path + '_data'):

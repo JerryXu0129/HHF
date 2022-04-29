@@ -30,7 +30,6 @@ class HHF(torch.nn.Module):
             else:     
                 pos_exp = torch.exp(alpha * (0.1 - cos))
                 neg_exp = torch.exp(alpha * (0.1 + cos))
-
             P_sim_sum = torch.where(P_one_hot  ==  1, pos_exp, torch.zeros_like(pos_exp)).sum(dim = 0)         
             N_sim_sum = torch.where(P_one_hot  ==  0, neg_exp, torch.zeros_like(neg_exp)).sum(dim = 0)
             pos_term = torch.log(1 + P_sim_sum).sum() / len(torch.nonzero(P_one_hot.sum(dim = 0) !=  0).squeeze(dim = 1))
