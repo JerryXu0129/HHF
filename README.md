@@ -5,6 +5,16 @@ Official PyTorch implementation of paper HHF: Hashing-guided Hinge Function for 
 
 ### Datasets
 
+### Training
+```
+python retrieval --dataset [dataset] --backbone [backbone] --hash_bit [hash_bit] --alpha [alpha] --beta [beta] --delta [delta]
+```
+
+### Inference
+```
+python retrieval --dataset [dataset] --backbone [backbone] --hash_bit [hash_bit] --alpha [alpha] --beta [beta] --delta [delta] --test
+```
+
 ### Performance
 
 ### Citation
