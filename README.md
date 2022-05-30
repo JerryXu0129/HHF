@@ -10,7 +10,9 @@ Official PyTorch implementation of paper HHF: Hashing-guided Hinge Function for 
 python retrieval --dataset [dataset] --backbone [backbone] --hash_bit [hash_bit] --alpha [alpha] --beta [beta] --delta [delta]
 ```
 dataset: cifar10, cifar100, coco, imagenet
+
 hash_bit: 12, 16, 24, 32, 48, 64
+
 backbone: googlenet, resnet, alexnet
 
 ### Inference
