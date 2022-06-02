@@ -23,7 +23,7 @@ parser.add_argument('--batch_size', type = int, default = 85, help = "batch size
 parser.add_argument('--epochs', type = int, default = 100, help = "epochs")
 parser.add_argument('--cuda', type = int, default = 0, help = "cuda id")
 parser.add_argument('--method', type = str, default = 'anchor', help = "methods")       #anchor, NCA, DHN
-parser.add_argument('--backbone', type = str, default = 'googlenet', help = "backbone")     #googlenet, resnet, alexnet
+parser.add_argument('--backbone', type = str, default = 'googlenet', help = "backbone")     #googlenet, resnet
 parser.add_argument('--origin', action = 'store_true', default = False, help = "without HHF method")
 parser.add_argument('--irreg', action = 'store_true', default = False, help = "No regularization")
 parser.add_argument('--alpha', type = float, default = 16, help = "alpha")
@@ -58,7 +58,7 @@ else:
     based_method = 'proxy'
 
 dataset = args.dataset
-datatype = args.datatype    #full, mini
+datatype = args.datatype   
 num_epochs = args.epochs
 
 batch_size = args.batch_size
