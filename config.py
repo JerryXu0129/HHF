@@ -16,14 +16,14 @@ from torch.utils import *
 from scipy.spatial.distance import cdist
 
 parser = argparse.ArgumentParser(description = 'retrieval')
-parser.add_argument('--dataset', type = str, default = 'cifar10', help = "dataset name")    #cifar10, cifar100, coco, imagenet
+parser.add_argument('--dataset', type = str, default = 'imagenet', help = "dataset name")    #cifar10, cifar100, coco, imagenet
 parser.add_argument('--datatype', type = str, default = 'full', help = "datatype")      #full, mini, toy
 parser.add_argument('--hash_bit', type = int, default = 48, help = "number of hash code bits")      #12, 16, 24, 32, 48, 64
 parser.add_argument('--batch_size', type = int, default = 85, help = "batch size")
 parser.add_argument('--epochs', type = int, default = 100, help = "epochs")
 parser.add_argument('--cuda', type = int, default = 0, help = "cuda id")
 parser.add_argument('--method', type = str, default = 'anchor', help = "methods")       #anchor, NCA, DHN
-parser.add_argument('--backbone', type = str, default = 'googlenet', help = "backbone")     #googlenet, resnet
+parser.add_argument('--backbone', type = str, default = 'googlenet', help = "backbone")     #googlenet, resnet, alexnet
 parser.add_argument('--origin', action = 'store_true', default = False, help = "without HHF method")
 parser.add_argument('--irreg', action = 'store_true', default = False, help = "No regularization")
 parser.add_argument('--alpha', type = float, default = 16, help = "alpha")
