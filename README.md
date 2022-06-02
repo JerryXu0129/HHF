@@ -13,6 +13,7 @@ Pytorch framework
 ### Training
 ```
 python retrieval --dataset [dataset] --backbone [backbone] --method [method] --hash_bit [hash_bit]
+```
 arguments (default value)
 ```
 --dataset:        dataset [(imagenet), cifar10, cifar100, coco]
@@ -21,6 +22,7 @@ arguments (default value)
 --hash_bit:       length of hash bits [(48), or any positive integer that ≤ 256]
 ```
 other optional arguments (default value)
+```
 --alpha:          a hyper-parameter to control the gradient of the metric loss [(16), or any positive float value]
 --beta:           a hyper-parameter to balance the contribution of metric loss and quantization loss [(0.001), or any positive float value]
 --delta:          a relaxation hyper-parameter to alleviate the overfitting problem [(0.2), or any positive float value that < 1]
