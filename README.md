@@ -17,7 +17,7 @@ python retrieval --dataset [dataset] --backbone [backbone] --method [method] --h
 Arguments (default value)
 ```
 --dataset:        dataset [(imagenet), cifar10, cifar100, coco]
---backbone:       backbone network for feature extracting [(googlenet), resnet, alexnet]
+--backbone:       backbone network for feature extracting [(googlenet), resnet]
 --method:         baseline method [(anchor), NCA, DHN]
 --hash_bit:       length of hash bits [(48), or any positive integer that ≤ 256]
 ```
