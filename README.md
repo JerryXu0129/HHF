@@ -30,7 +30,7 @@ other optional arguments (default value)
 ```
 
 ### Inference
-Add '--test' after the training command. Make sure there is a corresponding `.ckpt` file in the 'result' directory.
+Add '--test' after the training command. Make sure there is a corresponding `.ckpt` file in the `./result` directory.
 ```
 python retrieval --dataset [dataset] --backbone [backbone] --method [method] --hash_bit [hash_bit] --test
 ```
