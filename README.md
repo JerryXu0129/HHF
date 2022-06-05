@@ -16,17 +16,17 @@ python retrieval --dataset [dataset] --backbone [backbone] --method [method] --h
 ```
 Arguments (default value)
 ```
---dataset:        dataset [(imagenet), cifar10, cifar100, coco]
---backbone:       backbone network for feature extracting [(googlenet), resnet]
---method:         baseline method [(anchor), NCA, DHN]
---hash_bit:       length of hash bits [(48), or any positive integer that ≤ 256]
+--dataset:        dataset                                         [(imagenet), cifar10, cifar100, coco]
+--backbone:       backbone network for feature extracting         [(googlenet), resnet]
+--method:         baseline method                                 [(anchor), NCA, DHN]
+--hash_bit:       length of hash bits                             [(48), or any positive integer that ≤ 256]
 ```
 Other optional arguments (default value)
 ```
---alpha:          a hyper-parameter to control the gradient of the metric loss [(16), or any positive float value]
---beta:           a hyper-parameter to balance the contribution of metric loss and quantization loss [(0.001), or any positive float value]
---delta:          a relaxation hyper-parameter to alleviate the overfitting problem [(0.2), or any positive float value that < 1]
---batch_size      the size of a mini-batch [(85), or any positive integer]
+--alpha:          a hyper-parameter to control the gradient of the metric loss                              [(16), or any positive float value]
+--beta:           a hyper-parameter to balance the contribution of metric loss and quantization loss        [(0.001), or any positive float value]
+--delta:          a relaxation hyper-parameter to alleviate the overfitting problem                         [(0.2), or any positive float value that < 1]
+--batch_size      the size of a mini-batch                                                                  [(85), or any positive integer]
 ```
 
 ### Inference
