@@ -9,7 +9,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import json
 import xlrd
-import xlwt
 from dataset import *
 from sklearn import manifold
 from torch.utils import *
@@ -30,6 +29,10 @@ parser.add_argument('--alpha', type = float, default = 16, help = "alpha")
 parser.add_argument('--beta', type = float, default = 0.001, help = "beta")
 parser.add_argument('--delta', type = float, default = 0.2, help = "delta")
 parser.add_argument('--retrieve', type = int, default = 0, help = "retrieval number")
+
+parser.add_argument('--toyclass', type = int, default = 5, help = "toy exp categories")
+parser.add_argument('--toynum', type = int, default = 10, help = "toy exp categories")
+parser.add_argument('--seed', type = int, default = 0, help = "toy exp categories")
 
 # for testing
 parser.add_argument('--test', action = 'store_true', default = False, help = "testing")
@@ -71,8 +74,15 @@ alpha = args.alpha
 beta = args.beta
 delta = args.delta
 
+toyclass = args.toyclass
+toynum = args.toynum
+seed = args.seed
 # path for loading and saving models
-path = './result/' + dataset + '_' + datatype + '_' + backbone + '_' + str(num_bits) + '_' + str(batch_size) + '_' + method + '_' + str(HHF_flag) + '_' + str(alpha + beta + delta)
+
+if datatype == 'toy':
+    path = 'toy/' + str(toynum) + '/' + str(toyclass) + '/' + str(HHF_flag) + '_' + str(seed + beta + delta)
+else:
+    path = 'result/' + dataset + '_' + datatype + '_' + backbone + '_' + str(num_bits) + '_' + str(batch_size) + '_' + method + '_' + str(HHF_flag) + '_' + str(alpha + beta + delta)
 model_path = path + '.ckpt'
 
 if train_flag and datatype != 'toy':
@@ -85,7 +95,7 @@ if tsne_flag:
 # Device configuration
 device = torch.device('cuda:'+str(args.cuda) if torch.cuda.is_available() else 'cpu')
 
-#  data pre-treatment
+#  data pre-treatment   
 data_transform = {
     "train": transforms.Compose([transforms.RandomHorizontalFlip(),
                                 transforms.ToTensor(),
@@ -165,13 +175,12 @@ elif dataset == 'coco':
 
 elif dataset == 'imagenet':
     if datatype == 'toy':
-        num_classes = 5
-        batch_size = 50
-        num_epochs = 100
+        num_classes = toyclass
+        batch_size = 85
         num_bits = 3
-        testset = ImageList(open('./data/imagenet/new_test.txt', 'r').readlines(), transform = data_transform['val'])
-        trainset = testset
-        database = testset
+        trainset = ImageList(open('./data/imagenet/' + str(toynum) + '_' + str(toyclass) + '_train.txt', 'r').readlines(), transform = data_transform['train'])
+        testset = trainset
+        database = trainset
     else:
         if retrieve == 0:
             retrieve = 1000
