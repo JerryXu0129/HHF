@@ -3,13 +3,14 @@ Official PyTorch implementation of paper HHF: Hashing-guided Hinge Function for 
 
 ### Requirements
 ```
-NVIDIA GPU + CUDA
-Python3
-Pytorch framework
+NVIDIA GPU + CUDA (may CuDNN) and corresponding PyTorch framework
+Python 3
 ```
-
 ### Datasets
-
+##### ImageNet/COCO
+We recommend you to follow [https://github.com/thuml/HashNet/tree/master/pytorch#datasets](https://github.com/thuml/HashNet/tree/master/pytorch#datasets) to prepare ImageNet and COCO images.
+##### CIFAR10/CIFAR100
+Please run the training command with `--dataset cifar10/cifar100` directly and the cifar10/cifar100 dataset will be downloaded automatically.
 ### Training
 ```
 python retrieval --dataset [dataset] --backbone [backbone] --method [method] --hash_bit [hash_bit]
@@ -28,15 +29,12 @@ Other optional arguments (default value)
 --delta:          a relaxation hyper-parameter to alleviate the overfitting problem                         [(0.2), or any positive float value that < 1]
 --batch_size      the size of a mini-batch                                                                  [(85), or any positive integer]
 ```
-
 ### Inference
 Add `--test` after the training command. Make sure there is a corresponding `.ckpt` file in the `./result/` directory.
 ```
 python retrieval --dataset [dataset] --backbone [backbone] --method [method] --hash_bit [hash_bit] --test
 ```
-
 ### Performance
-
 
 ### Citation
 If you use this method or this code in your research, please cite as:
