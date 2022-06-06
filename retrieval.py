@@ -254,6 +254,7 @@ if train_flag:    # Train the model
 
         # f.write('P:\n' + str(P) + '\n')
         scheduler.step()
+
         if datatype != 'toy':
             if epoch > 70:
                 mAP = test()
@@ -352,11 +353,11 @@ if train_flag:    # Train the model
         f.write("best_" + "mAP: " + str(best_map) + '\n')
         f.close()
 
+
 else:
     if not os.path.exists(path + '_data'):
         feature_model.load_state_dict(torch.load(model_path,  map_location = device))
     best_map = test()
-
 
 print("mAP: ", best_map)
     

@@ -15,7 +15,7 @@ from torch.utils import *
 from scipy.spatial.distance import cdist
 
 parser = argparse.ArgumentParser(description = 'retrieval')
-parser.add_argument('--dataset', type = str, default = 'cifar10', help = "dataset name")    #cifar10, cifar100, coco, imagenet
+parser.add_argument('--dataset', type = str, default = 'imagenet', help = "dataset name")    #cifar10, cifar100, coco, imagenet
 parser.add_argument('--datatype', type = str, default = 'full', help = "datatype")      #full, mini, toy
 parser.add_argument('--hash_bit', type = int, default = 48, help = "number of hash code bits")      #12, 16, 24, 32, 48, 64
 parser.add_argument('--batch_size', type = int, default = 85, help = "batch size")
@@ -61,7 +61,7 @@ else:
     based_method = 'proxy'
 
 dataset = args.dataset
-datatype = args.datatype    #full, mini
+datatype = args.datatype   
 num_epochs = args.epochs
 
 batch_size = args.batch_size
@@ -223,3 +223,4 @@ if HHF_flag:
     print('threshold:', threshold)
 
 print('------------- data prepared -------------')
+
