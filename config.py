@@ -15,8 +15,8 @@ from torch.utils import *
 from scipy.spatial.distance import cdist
 
 parser = argparse.ArgumentParser(description = 'retrieval')
-parser.add_argument('--dataset', type = str, default = 'imagenet', help = "dataset name")    #cifar10, cifar100, coco, imagenet
-parser.add_argument('--datatype', type = str, default = 'full', help = "datatype")      #full, mini, toy
+parser.add_argument('--dataset', type = str, default = 'imagenet', help = "dataset name")    #imagenet, coco, cifar10, cifar100 
+parser.add_argument('--datatype', type = str, default = 'full', help = "datatype")      #full, mini
 parser.add_argument('--hash_bit', type = int, default = 48, help = "number of hash code bits")      #12, 16, 24, 32, 48, 64
 parser.add_argument('--batch_size', type = int, default = 85, help = "batch size")
 parser.add_argument('--epochs', type = int, default = 100, help = "epochs")
@@ -24,35 +24,22 @@ parser.add_argument('--cuda', type = int, default = 0, help = "cuda id")
 parser.add_argument('--method', type = str, default = 'anchor', help = "methods")       #anchor, NCA, DHN
 parser.add_argument('--backbone', type = str, default = 'googlenet', help = "backbone")     #googlenet, resnet
 parser.add_argument('--origin', action = 'store_true', default = False, help = "without HHF method")
-parser.add_argument('--irreg', action = 'store_true', default = False, help = "No regularization")
+parser.add_argument('--irreg', action = 'store_true', default = False, help = "without quantization")
 parser.add_argument('--alpha', type = float, default = 16, help = "alpha")
 parser.add_argument('--beta', type = float, default = 0.001, help = "beta")
 parser.add_argument('--delta', type = float, default = 0.2, help = "delta")
 parser.add_argument('--retrieve', type = int, default = 0, help = "retrieval number")
-
-parser.add_argument('--toyclass', type = int, default = 5, help = "toy exp categories")
-parser.add_argument('--toynum', type = int, default = 10, help = "toy exp categories")
-parser.add_argument('--seed', type = int, default = 0, help = "toy exp categories")
-
-# for testing
+parser.add_argument('--seed', type = int, default = 0, help = "random seed for initializing proxies")
 parser.add_argument('--test', action = 'store_true', default = False, help = "testing")
-parser.add_argument('--tsne', action = 'store_true', default = False, help = "save tsne")
-parser.add_argument('--dist', action = 'store_true', default = False, help = "calculate distance")
-parser.add_argument('--figure', action = 'store_true', default = False, help = "Top-N and P-R curve")
-parser.add_argument('--visual', action = 'store_true', default = False, help = "visualization")
 
 args = parser.parse_args()
 
 # Hyper-parameters
 train_flag = bool(1 - args.test)
-tsne_flag = args.tsne
 reg_flag = bool(1 - args.irreg)
-dist_flag = args.dist
-figure_flag = args.figure
 method = args.method
 backbone = args.backbone
 HHF_flag = bool(1 - args.origin)
-visual_flag = args.visual
 retrieve = args.retrieve
 
 if method in ['DHN']:
@@ -74,23 +61,16 @@ alpha = args.alpha
 beta = args.beta
 delta = args.delta
 
-toyclass = args.toyclass
-toynum = args.toynum
 seed = args.seed
 # path for loading and saving models
 
-if datatype == 'toy':
-    path = 'toy/' + str(toynum) + '/' + str(toyclass) + '/' + str(HHF_flag) + '_' + str(seed + beta + delta)
-else:
-    path = 'result/' + dataset + '_' + datatype + '_' + backbone + '_' + str(num_bits) + '_' + str(batch_size) + '_' + method + '_' + str(HHF_flag) + '_' + str(alpha + beta + delta)
+
+path = 'result/' + dataset + '_' + datatype + '_' + backbone + '_' + str(num_bits) + '_' + str(batch_size) + '_' + method + '_' + str(HHF_flag) + '_' + str(alpha + beta + delta)
 model_path = path + '.ckpt'
 
 if train_flag and datatype != 'toy':
     file_path = path + '.txt'
     f = open(file_path, 'w')
-
-if tsne_flag:
-    fig_path = path + '.pdf'
 
 # Device configuration
 device = torch.device('cuda:'+str(args.cuda) if torch.cuda.is_available() else 'cpu')
@@ -174,22 +154,14 @@ elif dataset == 'coco':
     database = ImageList(open('./data/coco/database.txt', 'r').readlines(), transform = data_transform['val'])
 
 elif dataset == 'imagenet':
-    if datatype == 'toy':
-        num_classes = toyclass
-        batch_size = 85
-        num_bits = 3
-        trainset = ImageList(open('./data/imagenet/' + str(toynum) + '_' + str(toyclass) + '_train.txt', 'r').readlines(), transform = data_transform['train'])
-        testset = trainset
-        database = trainset
-    else:
-        if retrieve == 0:
-            retrieve = 1000
-        num_classes = 100
-        trainset = ImageList(open('./data/imagenet/train.txt', 'r').readlines(), transform = data_transform['train'])
-        if based_method == 'pair':
-            trainset_ = ImageList(open('./data/imagenet/train.txt', 'r').readlines(), transform = data_transform['train'])
-        testset = ImageList(open('./data/imagenet/test.txt', 'r').readlines(), transform = data_transform['val'])
-        database = ImageList(open('./data/imagenet/database.txt', 'r').readlines(), transform = data_transform['val'])
+    if retrieve == 0:
+        retrieve = 1000
+    num_classes = 100
+    trainset = ImageList(open('./data/imagenet/train.txt', 'r').readlines(), transform = data_transform['train'])
+    if based_method == 'pair':
+        trainset_ = ImageList(open('./data/imagenet/train.txt', 'r').readlines(), transform = data_transform['train'])
+    testset = ImageList(open('./data/imagenet/test.txt', 'r').readlines(), transform = data_transform['val'])
+    database = ImageList(open('./data/imagenet/database.txt', 'r').readlines(), transform = data_transform['val'])
 
 train_num = len(trainset)
 test_num = len(testset)

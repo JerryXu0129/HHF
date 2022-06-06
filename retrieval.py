@@ -15,14 +15,13 @@ def prediction(loader):
         else:
             outputs = torch.cat((outputs, feature_model(images)), 0)
             label = torch.cat((label, labels), 0)
-        
-    if datatype != 'toy':
-        if train_flag :
-            f.write('output_sample: \n' + str(outputs[:10]) + '\n')
-            f.write('label_sample: \n' + str(label[:10]) + '\n')
-        else:
-            print('output_sample: \n' + str(outputs[:10]))
-            print('label_sample: \n' + str(label[:10]))
+
+    if train_flag :
+        f.write('output_sample: \n' + str(outputs[:10]) + '\n')
+        f.write('label_sample: \n' + str(label[:10]) + '\n')
+    else:
+        print('output_sample: \n' + str(outputs[:10]))
+        print('label_sample: \n' + str(label[:10]))
  
     return outputs.cpu().numpy(), label.cpu().numpy()
 
@@ -49,50 +48,6 @@ def test():
         test_label = np.array(data[3])
         print('------------- load data -------------')
 
-    if tsne_flag:
-        tsne = manifold.TSNE(n_components=2, metric='cosine', init='pca', random_state=501)
-        if dataset not in ['cifar10', 'cifar100']:
-            data_label = np.array([np.argmax(i) for i in data_label])
-
-        X_tsne = tsne.fit_transform(data_predict)
-        x_min, x_max = X_tsne.min(0), X_tsne.max(0)
-        X_norm = (X_tsne - x_min) / (x_max - x_min)  # normalization
-        plt.figure(figsize=(8, 8))
-        color_list = list(set(mcolors.CSS4_COLORS.keys()) - set(['dimgrey', 'grey', 'darkgrey', 'lightgrey', 'gainsboro', 'whitesmoke', 'white', 'snow', 'darkred', 'mistyrose', 'seashell', 'linen', 'floralwhite', 'ivory', 'honeydew', 'aliceblue', 'azure', 'mintcream', 'ghostwhite', 'lavender', 'lavenderblush', 'lightcyan', 'beige', 'lightyellow', 'lightgoldenrodyellow', 'cornsilk', 'oldlace', 'antiquewhite', 'papayawhip', 'lemonchiffon', 'blanchedalmond']))
-
-        for i in range(X_norm.shape[0]):
-            plt.text(X_norm[i, 0], X_norm[i, 1], '.', color = color_list[data_label[i]], fontdict={'weight': 'bold', 'size': 9})
-        plt.xticks([])
-        plt.yticks([])
-        plt.savefig(fig_path, transparent=True, bbox_inches = 'tight', pad_inches = 0)
-
-        return 0
-
-    if dist_flag:
-        if dataset not in ['cifar10', 'cifar100']:
-            y__ = data_label
-        else:
-            y__ = np.eye(num_classes)[data_label]    
-        y_ = y__.reshape(database_num, num_classes, -1).repeat(num_bits, axis = 2) 
-        x_ = data_predict.reshape(database_num, -1, num_bits).repeat(num_classes, axis = 1) 
-        proxy = np.sum(x_ * y_, axis = 0) / np.sum(y_, axis = 0)  
-
-        # Dw = np.sum(np.linalg.norm(proxy[data_label] - data_predict, axis = 1)) / database_num   # calculate intra-distance
-        # Db_g = np.sum(np.sqrt(np.maximum(-2 * np.dot(proxy, proxy.T) + np.sum(np.square(proxy), axis=1, keepdims=True) + np.sum(np.square(proxy), axis=1), np.zeros((num_classes, num_classes))))) / (num_classes * (num_classes - 1))  # calculate inter-distance 
-        Db_g =  np.sum(cdist(proxy, proxy, metric='euclidean')) / (num_classes * (num_classes - 1))
-
-        distance_metric = cdist(data_predict, proxy, metric='euclidean')
-        Dw = np.sum(distance_metric * y__) / database_num
-
-        sample_intra = np.sum(np.where(y__, distance_metric, np.zeros_like(y__)), axis = 1)
-        sample_inter = np.min(np.where(1 - y__, distance_metric, np.zeros_like(y__) + num_bits), axis = 1)
-        eta_l = np.sum(np.true_divide(sample_intra, sample_inter)) / database_num
-        # diff_class_metric = np.where(1 - y__, distance_metric, np.zeros_like(y__) + num_bits)
-
-        HPE = np.sum(np.linalg.norm(data_predict - np.sign(data_predict), axis = 1)) / database_num
-        print(' Dw:', Dw, 'Db_g:', Db_g, ' eta_g:', Dw/Db_g, ' eta_l:', eta_l, 'HPE:', HPE)
-
-        return 0
 
     data_predict = np.sign(data_predict)
     test_predict = np.sign(test_predict)
@@ -100,73 +55,25 @@ def test():
     similarity = 1 - np.dot(test_predict, data_predict.T) / num_bits
     sim_ord = np.argsort(similarity, axis=1)
 
-    if figure_flag:
-        workbook = xlwt.Workbook(encoding= 'ascii')
-        worksheet = workbook.add_sheet("result")
-        Mean_precision = np.zeros((10))
-        Mean_PR = np.zeros((100))
-        for i in range(test_num):
-            order=sim_ord[i]
-            precision = []
-            PR = []
-            correct_count = 0
-            for j in range(database_num):
-                if dataset not in ['cifar10', 'cifar100']:
-                    if np.dot(test_label[i], data_label[order[j]]) > 0:
-                        correct_count += 1
-                        PR.append(correct_count / (j + 1))
-                else:
-                    if test_label[i] == data_label[order[j]]:
-                        correct_count += 1
-                        PR.append(correct_count / (j + 1))
-                if j % 100 == 99 and j < 1000:
-                    precision.append(correct_count / (j + 1))
-            temp = []
-            for i in range(100):
-                temp.append(PR[round(correct_count * (i + 1) / 100) - 1])
-
-            Mean_precision += np.array(precision)
-            Mean_PR += np.array(temp)
-
-        Mean_precision /= test_num
-        Mean_PR /= test_num
-        for i in range(len(Mean_PR)):
-            worksheet.write(0, i, Mean_PR[i])
-        for i in range(len(Mean_precision)):
-            worksheet.write(1, i, Mean_precision[i])
-        workbook.save(dataset + '_' + method + '_' + str(HHF_flag) + '_' + str(num_bits) + ".xls")
-        return 0
-
-    else:
-        apall=np.zeros(test_num)
-        for i in range(test_num):
-            x=0
-            p=0
-            order=sim_ord[i]
-            for j in range(retrieve):
-                if dataset not in ['cifar10', 'cifar100']:
-                    if np.dot(test_label[i], data_label[order[j]]) > 0:
-                        x += 1
-                        p += float(x) / (j + 1)
-                else:
-                    if test_label[i] == data_label[order[j]]:
-                        x=x+1
-                        p=p+float(x)/(j+1)
-            if p > 0:   
-                apall[i] = p / x
-        mAP=np.mean(apall)
-        if visual_flag:
-            perform_dict = {}
-            for i in range(test_num):
-                perform_dict[i] = sim_ord[i][:10]
-            performance_order = np.argsort(apall)
-            performance_file = open(path+'_performance', 'w')
-            if HHF_flag:
-                performance_file.write(str([performance_order[::-1].tolist(), perform_dict]))    
-            else:              
-                performance_file.write(str([performance_order.tolist(), perform_dict]))
-            performance_file.close()
-        return mAP
+    
+    apall=np.zeros(test_num)
+    for i in range(test_num):
+        x=0
+        p=0
+        order=sim_ord[i]
+        for j in range(retrieve):
+            if dataset not in ['cifar10', 'cifar100']:
+                if np.dot(test_label[i], data_label[order[j]]) > 0:
+                    x += 1
+                    p += float(x) / (j + 1)
+            else:
+                if test_label[i] == data_label[order[j]]:
+                    x=x+1
+                    p=p+float(x)/(j+1)
+        if p > 0:   
+            apall[i] = p / x
+    mAP=np.mean(apall)
+    return mAP
                 
 if backbone == 'googlenet':
     feature_model = torchvision.models.inception_v3(pretrained = True)
@@ -255,104 +162,30 @@ if train_flag:    # Train the model
         # f.write('P:\n' + str(P) + '\n')
         scheduler.step()
 
-        if datatype != 'toy':
-            if epoch > 70:
-                mAP = test()
-                if mAP > best_map:
-                    best_map = mAP
-                    best_epoch = epoch
-                    print("epoch: ", epoch)
-                    print("best_" + "mAP: ", best_map)
+
+        if epoch > 70:
+            mAP = test()
+            if mAP > best_map:
+                best_map = mAP
+                best_epoch = epoch
+                print("epoch: ", epoch)
+                print("best_" + "mAP: ", best_map)
+                f.write("epoch: " + str(epoch) + '\n')
+                f.write("best_" + "mAP: " + str(best_map) + '\n')
+                torch.save(feature_model.state_dict(), model_path)
+            else:
+                print("epoch: ", epoch)
+                print("mAP: ", mAP)
+                print("best_epoch: ", best_epoch)
+                print("best_" + "mAP: ", best_map)
+                if datatype != 'toy':
                     f.write("epoch: " + str(epoch) + '\n')
-                    f.write("best_" + "mAP: " + str(best_map) + '\n')
-                    torch.save(feature_model.state_dict(), model_path)
-                else:
-                    print("epoch: ", epoch)
-                    print("mAP: ", mAP)
-                    print("best_epoch: ", best_epoch)
-                    print("best_" + "mAP: ", best_map)
-                    if datatype != 'toy':
-                        f.write("epoch: " + str(epoch) + '\n')
-                        f.write("mAP: " + str(mAP) + '\n')
-                        f.write("best_epoch: " + str(best_epoch) + '\n')
-                        f.write("best_" + "mAP: " + str(best_map) + '\n')
-
-    if datatype == 'toy':
-        feature_model.eval()
-        # torch.save(feature_model.state_dict(), model_path)
-        with torch.no_grad():
-            data_predict, data_label = prediction(trainloader)
-        data_label = np.array([np.argmax(i) for i in data_label])
-        data_predict = np.array([(3 ** 0.5) * i / np.linalg.norm(i) for i in data_predict])
-        print(data_label[:5])
-        print(data_predict[:5])
-
-        f = open(path + '.txt', 'w')
-        ret = ''
-        for i in range(toyclass):
-            for j in range(len(data_predict)):
-                if data_label[j] == i:
-                    for k in data_predict[j]:
-                        ret += str(k) + ' '
-                    ret += '\n'
-        f.write(ret)
-        f.close()
-        
-        # color_list = sorted(list(set(mcolors.CSS4_COLORS.keys()) - set(['dimgrey', 'grey', 'darkgrey', 'lightgrey', 'gainsboro', 'whitesmoke', 'white', 'snow', 'darkred', 'mistyrose', 'seashell', 'linen', 'floralwhite', 'ivory', 'honeydew', 'aliceblue', 'azure', 'mintcream', 'ghostwhite', 'lavender', 'lavenderblush', 'lightcyan', 'beige', 'lightyellow', 'lightgoldenrodyellow', 'cornsilk', 'oldlace', 'antiquewhite', 'papayawhip', 'lemonchiffon', 'blanchedalmond'])))
-        # r = random.random
-        # random.seed(0)
-        # random.shuffle(color_list, random=r)
-        # # center and radius
-        # center = [0, 0, 0]
-        # radius = 3 ** (0.5)
-
-        # # data
-        # u = np.linspace(0, 2 * np.pi, 100)
-        # v = np.linspace(0, np.pi, 100)
-        # x = radius * np.outer(np.cos(u), np.sin(v)) + center[0]
-        # y = radius * np.outer(np.sin(u), np.sin(v)) + center[1]
-        # z = radius * np.outer(np.ones(np.size(u)), np.cos(v)) + center[2]
-
-        # # plot
-        # fig = plt.figure()
-        # ax = fig.add_subplot(111, projection='3d')
-        # # ax = Axes3D(fig)
-        
-        # # surface plot rstride 值越大，图像越粗糙
-        # ax.plot_surface(x, y, z, rstride=2, cstride=2, color='w', alpha = 0.2)
-
-        # x2 = [0, 0]
-        # y2 = [-3**0.5, 3**0.5]
-        # z2 = [0, 0]
-        # ax.plot(x2, y2, z2, color = 'b', alpha = 0.2)
-
-        # x1 = [1, 1, 1, -1, -1, -1, 1, -1]
-        # y1 = [1, 1, -1, 1, -1, 1, -1, -1]
-        # z1 = [1, -1, 1, 1, 1, -1, -1, -1]
-
-        # ax.scatter(x1, y1, z1)
-
-        # x2 = data_predict[:, 0]
-        # y2 = data_predict[:, 1]
-        # z2 = data_predict[:, 2]
-
-        # for i in range(0, len(data_label)):
-        #     ax.scatter(x2[i], y2[i], z2[i], marker='o',s=20 ,color = color_list[data_label[i]],alpha=0.5)
-
-        # # 添加坐标轴(顺序是Z, Y, X)
-        # ax.set_zlabel('Z')
-        # ax.set_ylabel('Y')
-        # ax.set_xlabel('X')
-        # ax.grid(False)
-        # # show
-        # # plt.show()
-        # ax.view_init(elev=10., azim=11)
-        # plt.savefig(path + '.jpg')
-    
+                    f.write("mAP: " + str(mAP) + '\n')
+                    f.write("best_epoch: " + str(best_epoch) + '\n')
+                    f.write("best_" + "mAP: " + str(best_map) + '\n')   
     else:
         f.write("best_" + "mAP: " + str(best_map) + '\n')
         f.close()
-
 
 else:
     if not os.path.exists(path + '_data'):
