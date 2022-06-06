@@ -3,8 +3,9 @@ from config import *
 class HHF(torch.nn.Module):
     def __init__(self):
         torch.nn.Module.__init__(self)
+        torch.manual_seed(seed)
         # Initialization
-        self.proxies = torch.nn.Parameter(torch.randn(num_classes, num_bits).to(device))                
+        self.proxies = torch.nn.Parameter(torch.randn(num_classes, num_bits).to(device))
         nn.init.kaiming_normal_(self.proxies, mode = 'fan_out')
 
     def forward(self, x = None, x_ = None, batch_y = None, batch_y_ = None, reg = None):
@@ -37,8 +38,8 @@ class HHF(torch.nn.Module):
 
         elif method == 'baseline': 
             if HHF_flag:
-                pos = alpha * (1 - cos)
-                neg = alpha * F.relu(cos - threshold)
+                pos = alpha * (1 - cos - delta)
+                neg = alpha * F.relu(cos - threshold - delta)
             else:
                 pos = alpha * (1 - cos)
                 neg = alpha * (1 + cos)
@@ -82,5 +83,7 @@ class HHF(torch.nn.Module):
         if based_method == 'pair':
             loss2 = torch.sum(torch.norm(torch.sign(x) - x, dim = 1).pow(2)) + torch.sum(torch.norm(torch.sign(x_) - x_, dim = 1).pow(2))
         else:
-            loss2 = torch.sum(torch.norm(torch.sign(x) - x, dim = 1).pow(2))
+            # loss2 = torch.sum(torch.norm(torch.sign(x) - x, dim = 1).pow(2))
+            loss2 =  len(x) - torch.sum(F.normalize(x, p = 2, dim = 1) * F.normalize(torch.sign(x), p = 2, dim = 1))
+            # print(loss2.detach())
         return loss1 + beta * loss2
