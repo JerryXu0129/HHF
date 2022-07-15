@@ -13,7 +13,7 @@ We recommend you to follow [https://github.com/thuml/HashNet/tree/master/pytorch
 Please run the training command with `--dataset cifar10/cifar100` directly and the cifar10/cifar100 dataset will be downloaded automatically.
 ### Training
 ```
-python retrieval --dataset [dataset] --backbone [backbone] --method [method] --hash_bit [hash_bit]
+python retrieval.py --dataset [dataset] --backbone [backbone] --method [method] --hash_bit [hash_bit]
 ```
 Arguments (default value)
 ```
@@ -32,7 +32,7 @@ Other optional arguments (default value)
 ### Inference
 Add `--test` after the training command. Make sure there is a corresponding `.ckpt` file in the `./result/` directory.
 ```
-python retrieval --dataset [dataset] --backbone [backbone] --method [method] --hash_bit [hash_bit] --test
+python retrieval.py --dataset [dataset] --backbone [backbone] --method [method] --hash_bit [hash_bit] --test
 ```
 ### Performance
 
