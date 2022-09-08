@@ -76,12 +76,24 @@ if train_flag and datatype != 'toy':
 device = torch.device('cuda:'+str(args.cuda) if torch.cuda.is_available() else 'cpu')
 
 #  data pre-treatment   
-data_transform = {
-    "train": transforms.Compose([transforms.RandomHorizontalFlip(),
-                                transforms.ToTensor(),
-                                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])]),
-    "val": transforms.Compose([transforms.ToTensor(),
-                            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])}
+if backbone == 'googlenet':
+    data_transform = {
+        "train": transforms.Compose([transforms.Resize((299, 299)),
+                                    transforms.RandomHorizontalFlip(),
+                                    transforms.ToTensor(),                
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])]),    
+        "val": transforms.Compose([transforms.Resize((299, 299)),               
+                                    transforms.ToTensor(),                                                  
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])}   
+elif backbone in ['resnet', 'alexnet']:                                                          
+    data_transform = {                                                                          
+        "train": transforms.Compose([transforms.Resize((224, 224)),                           
+                                    transforms.RandomHorizontalFlip(),                     
+                                    transforms.ToTensor(),                             
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])]), 
+        "val": transforms.Compose([transforms.Resize((224, 224)),                                             
+                                    transforms.ToTensor(),                                                
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])}
 # load train data
 if dataset  ==  'cifar10':
     num_classes = 10

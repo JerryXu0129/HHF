@@ -22,7 +22,7 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 class ImageList(object):
     def __init__(self, image_list, labels=None, transform=None):
-        self.imgs = [(transforms.Resize((299, 299))(Image.open(open(val.split()[0], 'rb')).convert('RGB')), np.array([int(la) for la in val.split()[1:]])) for val in image_list]
+        self.imgs = [((Image.open(open(val.split()[0], 'rb')).convert('RGB')), np.array([int(la) for la in val.split()[1:]])) for val in image_list]
         self.transform = transform
 
     def __getitem__(self, index):
